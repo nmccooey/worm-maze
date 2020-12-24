@@ -242,15 +242,23 @@ int main(int argc, char** argv)
 //==================================================================================
 void* mazeLoop(void* travelData)
 {
+	bool reachedExit = false;
 	// Number of moves the traveler has made.
 	int moveCounter = 0;
 	Traveler* traveler = (Traveler*) travelData;
 	traveler->running = true;
+	numLiveThreads++;
+	updateMessages();
 
 	// While thread is running.
 	while(traveler->running == true)
 	{
+		int tailRow;
+		int tailCol;
+		Direction tailDir;
+
 		int i = 0;
+		int j = traveler->segmentList.size() - 1;
 		int count = 0;
 		Direction dirArray[4];
 
@@ -262,6 +270,9 @@ void* mazeLoop(void* travelData)
 		previousRow = traveler->segmentList[i].row;
 		previousCol = traveler->segmentList[i].col;
 		previousDir = traveler->segmentList[i].dir;
+		tailRow = traveler->segmentList[j].row;
+		tailCol = traveler->segmentList[j].col;
+		tailDir = traveler->segmentList[j].dir;
 
 		// Check if head direction is North.
 		if (traveler->segmentList[0].dir != NORTH)
@@ -301,83 +312,147 @@ void* mazeLoop(void* travelData)
 
 
 		// Pick random direction.
+		bool trapped = false;
 		if (count > 0) {
 			traveler->segmentList[0].dir = dirArray[(rand() % count)];
 		} else {
-			traveler->segmentList[0].dir = NUM_DIRECTIONS;
+			trapped = true;
+			traveler->rgba[0] = 0.5;
+			traveler->rgba[1] = 0.5;
+			traveler->rgba[2] = 0.5;
+			//traveler->segmentList[0].dir = NUM_DIRECTIONS;
 		}
 		
-		for(i = 0; i < traveler->segmentList.size(); i++)
-		{
-			// Check valid move and then add segments based on cli input.
-			if (i == 0)
+		if (!trapped) {
+			for (i = 0; i < traveler->segmentList.size(); i++)
 			{
-				if (traveler->segmentList[i].dir == WEST) {
-					if (traveler->segmentList[i].col > 0) {
-						traveler->segmentList[i].col -= 1;
-						moveCounter++;
-						if (moveCounter % numMovesForGrowth == 0)
-						{
-							// Add segment.
-							TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
-							traveler->segmentList.push_back(seg);
+				// Check valid move and then add segments based on cli input.
+				if (i == 0)
+				{
+					if (traveler->segmentList[i].dir == WEST) {
+						if (traveler->segmentList[i].col > 0) {
+							traveler->segmentList[i].col -= 1;
+							moveCounter++;
+							if (moveCounter % numMovesForGrowth == 0)
+							{
+								// Add segment.
+								TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
+								traveler->segmentList.push_back(seg);
+							}
 						}
-					}
-				} else if (traveler->segmentList[i].dir == EAST) {
-					if (traveler->segmentList[i].col < numCols) {
-						traveler->segmentList[i].col += 1;
-						moveCounter++;
-						if (moveCounter % numMovesForGrowth == 0)
-						{
-							// Add segment.
-							TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
-							traveler->segmentList.push_back(seg);
+					} else if (traveler->segmentList[i].dir == EAST) {
+						if (traveler->segmentList[i].col < numCols) {
+							traveler->segmentList[i].col += 1;
+							moveCounter++;
+							if (moveCounter % numMovesForGrowth == 0)
+							{
+								// Add segment.
+								TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
+								traveler->segmentList.push_back(seg);
+							}
 						}
-					}
-				} else if (traveler->segmentList[i].dir == NORTH) {
-					if (traveler->segmentList[i].row > 0) {
-						traveler->segmentList[i].row -= 1;
-						moveCounter++;
-						if (moveCounter % numMovesForGrowth == 0)
-						{
-							// Add segment.
-							TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
-							traveler->segmentList.push_back(seg);
+					} else if (traveler->segmentList[i].dir == NORTH) {
+						if (traveler->segmentList[i].row > 0) {
+							traveler->segmentList[i].row -= 1;
+							moveCounter++;
+							if (moveCounter % numMovesForGrowth == 0)
+							{
+								// Add segment.
+								TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
+								traveler->segmentList.push_back(seg);
+							}
 						}
-					}
-				} else if (traveler->segmentList[i].dir == SOUTH) {
-					if (traveler->segmentList[i].row < numRows) {
-						traveler->segmentList[i].row += 1;
-						moveCounter++;
-						if (moveCounter % numMovesForGrowth == 0)
-						{
-							// Add segment.
-							TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
-							traveler->segmentList.push_back(seg);
+					} else if (traveler->segmentList[i].dir == SOUTH) {
+						if (traveler->segmentList[i].row < numRows) {
+							traveler->segmentList[i].row += 1;
+							moveCounter++;
+							if (moveCounter % numMovesForGrowth == 0)
+							{
+								// Add segment.
+								TravelerSegment seg = {traveler->segmentList[i].row, traveler->segmentList[i].col, traveler->segmentList[i].dir};
+								traveler->segmentList.push_back(seg);
+							}
 						}
 					}
 				}
+
+				if (i > 0 && !trapped)
+				{
+					int tempRow = traveler->segmentList[i].row;
+					Direction tempDir = traveler->segmentList[i].dir;
+					int tempCol = traveler->segmentList[i].col;
+
+					traveler->segmentList[i].col = previousCol;
+					traveler->segmentList[i].row = previousRow;
+					traveler->segmentList[i].dir = previousDir;
+					previousDir = tempDir;
+					previousRow = tempRow;
+					previousCol = tempCol;
+				}
+
+				int tc = traveler->segmentList[i].col;
+				int tr = traveler->segmentList[i].row;
+
+				grid[tr][tc] = TRAVELER;
 			}
 
-			if (i > 0)
+			if (moveCounter % numMovesForGrowth != 0 && !trapped)
 			{
-				int tempRow = traveler->segmentList[i].row;
-				Direction tempDir = traveler->segmentList[i].dir;
-				int tempCol = traveler->segmentList[i].col;
-
-				traveler->segmentList[i].col = previousCol;
-				traveler->segmentList[i].row = previousRow;
-				traveler->segmentList[i].dir = previousDir;
-				previousDir = tempDir;
-				previousRow = tempRow;
-				previousCol = tempCol;
+				grid[tailRow][tailCol] = FREE_SQUARE;
 			}
 		}
 		// End of movement code.
+
+		// Exit code
+		int tc = traveler->segmentList[0].col;
+		int tr = traveler->segmentList[0].row;
+
+		
+		if (tr < numRows - 1 && grid[tr + 1][tc] == EXIT)
+		{
+			reachedExit = true;
+		}
+
+		if (tr > 0 && grid[tr - 1][tc] == EXIT)
+		{
+			reachedExit = true;
+		}
+
+		if (tc < numCols - 1 && grid[tr][tc + 1] == EXIT)
+		{
+			reachedExit = true;
+		}
+
+		if (tc > 0 && grid[tr][tc - 1] == EXIT)
+		{
+			reachedExit = true;
+		}
+
+		if (reachedExit)
+		{
+			traveler->running = false;
+			numTravelersDone++;
+			updateMessages();
+
+			traveler->segmentList.clear();
+			int i;
+			for (i = 0; i < travelerList.size(); i++)
+			{
+				if (&travelerList[i] == traveler)
+				{
+					// This was an attempt to remove traveler. Seg fault.
+					//travelerList.erase(travelerList.begin() + i);
+					break;
+				}
+			}
+			break;
+		}
+
 		// Set sleep to whatever the global variable is.
 		usleep(travelerSleepTime);
 	}
-
+	numLiveThreads--;
+	updateMessages();
 	return NULL;
 }
 
